@@ -2,7 +2,6 @@
 
 #include <ranges>
 #include <set>
-#include <math.h>
 
 namespace algorithms {
 
@@ -310,8 +309,7 @@ auto AStar(const std::vector<Node> &nodes,
           continue;
         auto full_path = min_distance[source] + edge.length;
         if (!open_set[edge.dest->id]) {
-          auto distance = std::pow(edge.dest->x - nodes[end].x, 2)
-              + std::pow(edge.dest->y - nodes[end].y, 2);
+          auto distance = Length(*edge.dest, nodes[end]);
           min_distance[edge.dest->id] = full_path + distance;
           active_vertices.insert({min_distance[edge.dest->id], edge.dest->id});
           open_set[edge.dest->id] = true;

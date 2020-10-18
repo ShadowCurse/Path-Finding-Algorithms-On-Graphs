@@ -37,7 +37,7 @@ class GraphWidget : public QGraphicsView {
  private:
 
   void Create_Nodes(int nodes_num, double weight);
-  void Create_Edges(int edges_per_node);
+  void Create_Edges(int edges_per_node, double weight);
   void scaleView(qreal scaleFactor);
 #if QT_CONFIG(wheelevent)
   void wheelEvent(QWheelEvent *event) override;

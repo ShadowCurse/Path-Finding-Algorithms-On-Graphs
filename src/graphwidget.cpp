@@ -91,7 +91,7 @@ void GraphWidget::generate_graph(int node_num, int edges_per_node, double edge_w
     Arc_lines.clear();
     prev_Start = prev_End = -1;
     Create_Nodes(node_num, edge_weight);
-    Create_Edges(edges_per_node);
+    Create_Edges(edges_per_node, edge_weight);
     emit Nodes_Created(nodes_.size());
   } else {
     emit Nodes_Error();
@@ -375,7 +375,7 @@ void GraphWidget::Create_Nodes(int nodes_num, double weight) {
   std::mt19937 gen(device());
   std::uniform_real_distribution<> width_position(0, this->width());
   std::uniform_real_distribution<> height_position(0, this->height());
-  std::uniform_real_distribution<> pos_distribution(-weight, weight);
+  std::uniform_real_distribution<> pos_distribution(-weight / 2, weight / 2);
 
   nodes_.reserve(nodes_num);
   auto &first_node = nodes_.emplace_back(nodes_.size());
@@ -407,7 +407,7 @@ void GraphWidget::Create_Nodes(int nodes_num, double weight) {
   }
 }
 
-void GraphWidget::Create_Edges(int edges_per_node) {
+void GraphWidget::Create_Edges(int edges_per_node, double weight) {
   std::random_device device;
   std::mt19937 gen(device());
   std::uniform_real_distribution<> edges_num_distribution(1, edges_per_node);
@@ -418,7 +418,8 @@ void GraphWidget::Create_Edges(int edges_per_node) {
   std::sort(std::begin(sorted_x_nodes),
             std::end(sorted_x_nodes),
             [](const auto &e1, const auto &e2) { return e1->x < e2->x; });
-  std::vector<Node *> sorted_y_nodes(sorted_x_nodes);
+  std::vector<Node *> sorted_y_nodes(nodes_size);
+  std::transform(std::begin(nodes_), std::end(nodes_), std::begin(sorted_y_nodes), [](auto &node) { return &node; });
   std::sort(std::begin(sorted_y_nodes),
             std::end(sorted_y_nodes),
             [](const auto &e1, const auto &e2) { return e1->y < e2->y; });
@@ -431,23 +432,39 @@ void GraphWidget::Create_Edges(int edges_per_node) {
 
   for (size_t i{0}; i < nodes_size; ++i) {
     auto &node = nodes_[i];
-    auto node_x_pos = node_x_y_pos[i].first;
-    auto node_y_pos = node_x_y_pos[i].second;
-    auto min_x = std::clamp(node_x_pos - edges_per_node, size_t{0}, node_x_pos - edges_per_node);
-    auto max_x = std::clamp(node_x_pos + edges_per_node, node_x_pos + edges_per_node, nodes_size - 1);
-    auto min_y = std::clamp(node_y_pos - edges_per_node, size_t{0}, i - edges_per_node);
-    auto max_y = std::clamp(node_y_pos + edges_per_node, node_y_pos + edges_per_node, nodes_size - 1);
+    auto node_x_pos = static_cast<int>(node_x_y_pos[i].first);
+    auto node_y_pos = static_cast<int>(node_x_y_pos[i].second);
+    auto min_x = std::clamp(node_x_pos - edges_per_node, 0, static_cast<int>(sorted_x_nodes.size()));
+    auto max_x = std::clamp(node_x_pos + edges_per_node, 0, static_cast<int>(sorted_x_nodes.size()));
+    auto min_y = std::clamp(node_y_pos - edges_per_node, 0, static_cast<int>(sorted_y_nodes.size()));
+    auto max_y = std::clamp(node_y_pos + edges_per_node, 0, static_cast<int>(sorted_y_nodes.size()));
     std::span x_span(std::begin(sorted_x_nodes) + min_x, std::begin(sorted_x_nodes) + max_x);
     std::span y_span(std::begin(sorted_y_nodes) + min_y, std::begin(sorted_y_nodes) + max_y);
+    Node *closest_node{nullptr};
+    double min_distance{std::numeric_limits<double>::max()};
     for (auto x_value: x_span) {
       if (auto result = std::find(std::begin(y_span), std::end(y_span), x_value); result != std::end(y_span)
           && *result != &node) {
-        auto &new_edge = edges_.emplace_back(&node, x_value, edges_.size());
-        auto &new_graphical_edge =
-            graphical_edges_.insert({new_edge.id, new GraphicalEdge(&new_edge)}).first->second;
-        this->scene()->addItem(new_graphical_edge);
-        new_graphical_edge->adjust();
+        auto length = algorithms::Length(node, *x_value);
+        if (length < min_distance) {
+          min_distance = length;
+          closest_node = x_value;
+        }
+        if (length < std::pow(weight, 2)) {
+          auto &new_edge = edges_.emplace_back(&node, x_value, edges_.size());
+          auto &new_graphical_edge =
+              graphical_edges_.insert({new_edge.id, new GraphicalEdge(edges_, new_edge.id)}).first->second;
+          this->scene()->addItem(new_graphical_edge);
+          new_graphical_edge->adjust();
+        }
       }
+    }
+    if (node.edges.empty() && closest_node) {
+      auto &new_edge = edges_.emplace_back(&node, closest_node, edges_.size());
+      auto &new_graphical_edge =
+          graphical_edges_.insert({new_edge.id, new GraphicalEdge(edges_, new_edge.id)}).first->second;
+      this->scene()->addItem(new_graphical_edge);
+      new_graphical_edge->adjust();
     }
   }
 }

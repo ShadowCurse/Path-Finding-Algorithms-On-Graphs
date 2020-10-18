@@ -5,8 +5,14 @@
 #include <tuple>
 #include "node.h"
 #include "edge.h"
+#include <cmath>
 
 namespace algorithms {
+
+inline auto Length(const Node& node1, const Node& node2) {
+  return std::pow(node1.x - node2.x, 2)
+      + std::pow(node1.y - node2.y, 2);
+}
 
 auto Kruskal(const std::vector<Node> &nodes, std::vector<Edge> &edges) -> std::pair<std::vector<Edge *>,
                                                                                     std::vector<Edge * >>;

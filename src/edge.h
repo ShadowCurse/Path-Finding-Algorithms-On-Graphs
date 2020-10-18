@@ -23,7 +23,7 @@ class Edge {
 
 class GraphicalEdge : public QGraphicsItem {
  public:
-  explicit GraphicalEdge(Edge *edge);
+  explicit GraphicalEdge(const std::vector<Edge> &edges, size_t edge_id);
 
   enum class Color {
     def, green, red, orange, blue
@@ -36,7 +36,8 @@ class GraphicalEdge : public QGraphicsItem {
   [[nodiscard]] QRectF boundingRect() const override;
   void paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget) override;
 
-  Edge *edge_;
+  const std::vector<Edge> &edges_;
+  const size_t edge_id_;
   QPointF sourcePoint_;
   QPointF destPoint_;
   qreal arrowSize_;
